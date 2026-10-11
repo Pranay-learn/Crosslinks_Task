@@ -29,6 +29,8 @@ Use the repository root as Root Directory. The checked-in `vercel.json` supplies
 | `GOOGLE_CLIENT_SECRET` | The matching OAuth client secret                                               |
 | `ADMIN_EMAILS`         | Comma-separated trusted administrator addresses ending in `@nsut.ac.in`        |
 
+Connecting Neon through your Vercel project's Storage/Marketplace supplies `DATABASE_URL` and `DATABASE_URL_UNPOOLED` automatically. The production build accepts `DATABASE_URL_UNPOOLED` when `DIRECT_DATABASE_URL` is unset; the explicit override takes priority. Those integration-managed secrets can remain in Vercel without being downloaded locally.
+
 Keep `VITE_API_URL` unset so browser requests use the same site's `/api`. The Google secret and database strings must remain server variables without a `VITE_` prefix. No local PostgreSQL address or test database belongs in the deployment. Production builds compile the app and apply the checked-in migrations through the direct connection. They do not seed fictional students or content.
 
 Vercel supplies `VERCEL_PROJECT_PRODUCTION_URL`. The API uses that HTTPS domain as the frontend/API origin and derives `/api/auth/google/callback` automatically. Explicit `CLIENT_ORIGIN`, `API_ORIGIN`, and `GOOGLE_REDIRECT_URI` overrides take priority. When adding a custom domain, set all three to your actual chosen origins and callback. Remove old localhost overrides.

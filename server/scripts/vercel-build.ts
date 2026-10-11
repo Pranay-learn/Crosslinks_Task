@@ -11,10 +11,11 @@ function run(script: string) {
 
 // Preview deployments must not change the production database schema.
 if (process.env.VERCEL_ENV === "production") {
-  const directUrl = process.env.DIRECT_DATABASE_URL;
+  const directUrl =
+    process.env.DIRECT_DATABASE_URL || process.env.DATABASE_URL_UNPOOLED;
   if (!directUrl) {
     console.error(
-      "Set DIRECT_DATABASE_URL to the database's direct connection in Vercel Production settings before deploying.",
+      "Set DIRECT_DATABASE_URL to the database's direct connection, or connect Neon to provide DATABASE_URL_UNPOOLED, in Vercel Production settings before deploying.",
     );
     process.exit(1);
   }
