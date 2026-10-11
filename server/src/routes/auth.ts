@@ -48,8 +48,15 @@ export function authRoutes(db: PrismaClient, config: ServerConfig) {
       },
     });
   });
-  router.get("/google", async (_req, res) => {
+  router.get("/google", async (req, res) => {
     configured();
+    const callback = new URL(config.googleRedirectUri);
+    if (config.production && req.get("host")?.toLowerCase() !== callback.host) {
+      // Host-only cookies must be created on the domain that receives Google's callback.
+      // The redirect destination comes only from server configuration, never request headers.
+      res.redirect(new URL("/api/auth/google", callback.origin).href);
+      return;
+    }
     const state = opaqueToken();
     const nonce = opaqueToken();
     const codeVerifier = opaqueToken();

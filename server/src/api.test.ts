@@ -169,6 +169,48 @@ suite(
       expect((await request(invalid).get("/api/auth/google")).status).toBe(503);
       expect(await db!.oAuthState.count()).toBe(before);
     });
+    it("starts production Google login on the callback host before setting its browser cookie", async () => {
+      const oauthApp = createApp({
+        db: db!,
+        config: {
+          port: 3001,
+          clientOrigin: "https://campus.example",
+          apiOrigin: "https://campus.example",
+          googleClientId: "1234567890-integration.apps.googleusercontent.com",
+          googleClientSecret: "integration-placeholder",
+          googleRedirectUri: "https://campus.example/api/auth/google/callback",
+          adminEmails: [],
+          production: true,
+        },
+      });
+      const before = await db!.oAuthState.count();
+      for (const host of ["campus-alias.example", "untrusted.example"]) {
+        const begin = await request(oauthApp)
+          .get("/api/auth/google")
+          .set("Host", host)
+          .set("X-Forwarded-Host", "campus.example");
+        expect(begin.status).toBe(302);
+        expect(begin.headers.location).toBe(
+          "https://campus.example/api/auth/google",
+        );
+        expect(begin.headers["set-cookie"]).toBeUndefined();
+        expect(await db!.oAuthState.count()).toBe(before);
+      }
+      const begin = await request(oauthApp)
+        .get("/api/auth/google")
+        .set("Host", "campus.example");
+      expect(begin.status).toBe(302);
+      const location = new URL(begin.headers.location);
+      expect(location.origin).toBe("https://accounts.google.com");
+      expect(location.searchParams.get("redirect_uri")).toBe(
+        "https://campus.example/api/auth/google/callback",
+      );
+      const state = location.searchParams.get("state")!;
+      expect(begin.headers["set-cookie"][0]).toContain(
+        `${oauthCookie}=${state};`,
+      );
+      await db!.oAuthState.delete({ where: { stateHash: hashToken(state) } });
+    });
     it("binds one-use OAuth state to its browser and sets production-safe cookies", async () => {
       const oauthApp = createApp({
         db: db!,
@@ -186,7 +228,9 @@ suite(
       const status = await request(oauthApp).get("/api/auth/status");
       expect(status.status).toBe(200);
       expect(status.body).toEqual({ data: { configured: true } });
-      const begin = await request(oauthApp).get("/api/auth/google");
+      const begin = await request(oauthApp)
+        .get("/api/auth/google")
+        .set("Host", "api.example");
       expect(begin.status).toBe(302);
       const location = new URL(begin.headers.location);
       expect(location.origin).toBe("https://accounts.google.com");

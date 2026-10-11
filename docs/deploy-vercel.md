@@ -47,6 +47,8 @@ Deploy `nsut-connect`. Vercel returns your site's actual HTTPS address. In [Goog
 
 Store the matching client ID/secret in Vercel Production environment settings and redeploy after changes. A Google `hd` hint is not authorization: the API verifies Google's token, requires verified email, and enforces the exact `@nsut.ac.in` domain. `ADMIN_EMAILS` grants roles only to the specified campus accounts.
 
+Production Google login redirects alternate deployment addresses to the configured callback domain before creating the sign-in cookie. Use the canonical Production address when sharing the site. Starting login on one domain and returning on another would otherwise lose the host-only cookie and produce an invalid sign-in state error.
+
 ## 5. Verify the published application
 
 Visit the actual Production deployment and check:
