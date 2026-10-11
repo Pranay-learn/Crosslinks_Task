@@ -1,0 +1,244 @@
+generator client {
+  provider = "prisma-client-js"
+  engineType = "client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STUDENT
+  ADMIN
+}
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+}
+enum Visibility {
+  PUBLIC
+  CAMPUS
+}
+enum AnnouncementStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+enum Priority {
+  NORMAL
+  IMPORTANT
+  URGENT
+}
+
+model User {
+  id           String        @id @default(cuid())
+  googleId     String?       @unique
+  email        String        @unique
+  name         String
+  avatarUrl    String        @default("")
+  role         Role          @default(STUDENT)
+  branch       String        @default("")
+  year         Int           @default(1)
+  semester     Int           @default(1)
+  section      String        @default("")
+  bio          String        @default("")
+  status       AccountStatus @default(ACTIVE)
+  visibility   Visibility    @default(CAMPUS)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  posts        Post[]
+  likes        PostLike[]
+  comments     Comment[]
+  bookmarks    Bookmark[]
+  discussions  Discussion[]
+  votes        DiscussionVote[]
+  replies      DiscussionReply[]
+  reads        AnnouncementRead[]
+  notifications Notification[]
+  audits       AuditLog[]
+  sessions     Session[]
+  following    Follow[]      @relation("FollowerUser")
+  followers    Follow[]      @relation("FollowingUser")
+  @@index([status, createdAt])
+  @@index([branch, year])
+}
+
+model Post {
+  id        String   @id @default(cuid())
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  text      String
+  imageUrl  String   @default("")
+  category  String   @default("General")
+  hidden    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  likes     PostLike[]
+  comments  Comment[]
+  bookmarks Bookmark[]
+  @@index([hidden, createdAt])
+  @@index([authorId, createdAt])
+  @@index([category, createdAt])
+}
+model PostLike {
+  postId    String
+  userId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  @@id([postId, userId])
+  @@index([userId])
+}
+model Comment {
+  id        String   @id @default(cuid())
+  postId    String
+  authorId  String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  text      String
+  createdAt DateTime @default(now())
+  @@index([postId, createdAt])
+}
+model Bookmark {
+  postId    String
+  userId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  @@id([postId, userId])
+  @@index([userId])
+}
+model Discussion {
+  id              String   @id @default(cuid())
+  authorId        String
+  author          User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  title           String
+  text            String
+  category        String   @default("General")
+  tags            String[]
+  hidden          Boolean  @default(false)
+  acceptedReplyId String?   @unique
+  acceptedReply   DiscussionReply? @relation("AcceptedAnswer", fields: [acceptedReplyId], references: [id], onDelete: SetNull)
+  replies         DiscussionReply[] @relation("DiscussionReplies")
+  votes           DiscussionVote[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  @@index([hidden, createdAt])
+  @@index([authorId, createdAt])
+  @@index([category, createdAt])
+}
+model DiscussionVote {
+  discussionId String
+  userId       String
+  discussion   Discussion @relation(fields: [discussionId], references: [id], onDelete: Cascade)
+  user         User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  @@id([discussionId, userId])
+  @@index([userId])
+}
+model DiscussionReply {
+  id           String @id @default(cuid())
+  discussionId String
+  authorId     String
+  discussion   Discussion @relation("DiscussionReplies", fields: [discussionId], references: [id], onDelete: Cascade)
+  author       User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  text         String
+  parentId     String?
+  parent       DiscussionReply? @relation("NestedReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  children     DiscussionReply[] @relation("NestedReplies")
+  acceptedBy   Discussion? @relation("AcceptedAnswer")
+  createdAt    DateTime @default(now())
+  @@index([discussionId, createdAt])
+  @@index([parentId])
+}
+model Announcement {
+  id        String @id @default(cuid())
+  title     String
+  text      String
+  authority String
+  category  String @default("General")
+  priority  Priority @default(NORMAL)
+  pinned    Boolean @default(false)
+  status    AnnouncementStatus @default(DRAFT)
+  reads     AnnouncementRead[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([status, pinned, createdAt])
+  @@index([category, createdAt])
+}
+model AnnouncementRead {
+  announcementId String
+  userId         String
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  user           User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+  @@id([announcementId, userId])
+  @@index([userId])
+}
+model TimetableEntry {
+  id        String @id @default(cuid())
+  subject   String
+  code      String
+  faculty   String
+  room      String
+  day       Int
+  start     String
+  end       String
+  branch    String
+  semester  Int
+  section   String
+  color     String @default("#2563eb")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([branch, semester, section, day, start])
+}
+model Notification {
+  id        String @id @default(cuid())
+  userId    String
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  text      String
+  link      String
+  read      Boolean @default(false)
+  createdAt DateTime @default(now())
+  @@index([userId, read, createdAt])
+}
+model AuditLog {
+  id        String @id @default(cuid())
+  actorId   String
+  actor     User @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  action    String
+  targetId  String
+  createdAt DateTime @default(now())
+  @@index([createdAt])
+  @@index([actorId, createdAt])
+}
+model Session {
+  id        String @id @default(cuid())
+  tokenHash String @unique
+  csrfToken String
+  userId    String
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  @@index([userId])
+  @@index([expiresAt])
+}
+model OAuthState {
+  stateHash    String @id
+  nonce        String
+  codeVerifier String
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  @@index([expiresAt])
+}
+
+model Follow {
+  followerId  String
+  followingId String
+  follower    User     @relation("FollowerUser", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("FollowingUser", fields: [followingId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  @@id([followerId, followingId])
+  @@index([followingId])
+}

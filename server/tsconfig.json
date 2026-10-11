@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "target": "ES2022", "lib": ["ES2022"], "module": "NodeNext", "moduleResolution": "NodeNext",
+    "strict": true, "esModuleInterop": true, "skipLibCheck": true, "resolveJsonModule": true,
+    "outDir": "../dist-server", "rootDir": "..", "types": ["node"], "noUnusedLocals": true,
+    "noUnusedParameters": true
+  },
+  "include": ["src/**/*.ts", "prisma/seed.ts", "scripts/**/*.ts", "prisma.config.ts", "../shared/model.ts"],
+  "exclude": ["src/**/*.test.ts", "tests/**"]
+}
