@@ -1,5 +1,5 @@
 # NSUT Connect
-
+website: https://nsut-connect-eta.vercel.app/
 A responsive student community platform for NSUT, built with React, Vite, TypeScript, Tailwind CSS, React Router, Lucide, and Framer Motion. Express, PostgreSQL, and Prisma back the default full-stack application.
 
 Live mode requires real Google authentication with a verified `@nsut.ac.in` account. Student and administrator permissions are enforced on the server. If the API or OAuth configuration is unavailable, sign-in remains unavailable; simulated roles never grant campus access. This project is independent of official NSUT services.
