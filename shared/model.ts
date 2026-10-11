@@ -88,6 +88,17 @@ export interface Notification {
   read: boolean;
   createdAt: string;
 }
+export interface CampusEvent {
+  id: string;
+  title: string;
+  text: string;
+  location: string;
+  startsAt: string;
+  endsAt: string;
+  createdAt: string;
+  attending: boolean;
+  attendeeCount: number;
+}
 export interface AuditLog {
   id: string;
   actorId: string;
@@ -96,6 +107,8 @@ export interface AuditLog {
   createdAt: string;
 }
 export interface Snapshot {
+  /** Simulated attendance only; the server never emits this demo storage field. */
+  demoEventRsvps?: Record<string, string[]>;
   following?: string[];
   users: User[];
   posts: Post[];
@@ -104,6 +117,7 @@ export interface Snapshot {
   replies: Reply[];
   announcements: Announcement[];
   timetable: TimetableEntry[];
+  events: CampusEvent[];
   notifications: Notification[];
   auditLogs: AuditLog[];
 }
@@ -126,6 +140,9 @@ export type ActionName =
   | "announcement.read"
   | "timetable.save"
   | "timetable.delete"
+  | "event.save"
+  | "event.delete"
+  | "event.rsvp"
   | "profile.edit"
   | "notification.read"
   | "notification.readAll"

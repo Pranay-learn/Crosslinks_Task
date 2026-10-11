@@ -8,6 +8,15 @@ export interface ServerConfig {
   adminEmails: string[];
   production: boolean;
 }
+export function googleSignInConfigured(
+  config: Pick<ServerConfig, "googleClientId" | "googleClientSecret">,
+): boolean {
+  return (
+    /^[A-Za-z0-9_-]+\.apps\.googleusercontent\.com$/.test(
+      config.googleClientId,
+    ) && Boolean(config.googleClientSecret)
+  );
+}
 
 export function loadConfig(): ServerConfig {
   const production = process.env.NODE_ENV === "production";

@@ -75,4 +75,36 @@ describe("demo community behavior", () => {
       applyAction(s, s.users[0], "post.create", { text: " " }),
     ).toThrow("Content");
   });
+  it("keeps demo event attendance per student, idempotent, and administrator-managed", () => {
+    const state = createDemo(),
+      alice = state.users[0],
+      bob = state.users[1];
+    const first = applyAction(state, alice, "event.rsvp", {
+      id: "build",
+      attending: true,
+    });
+    const repeat = applyAction(first, alice, "event.rsvp", {
+      id: "build",
+      attending: true,
+    });
+    expect(repeat.events[0].attendeeCount).toBe(1);
+    const second = applyAction(repeat, bob, "event.rsvp", {
+      id: "build",
+      attending: true,
+    });
+    const left = applyAction(second, alice, "event.rsvp", {
+      id: "build",
+      attending: false,
+    });
+    expect(left.demoEventRsvps?.build).toEqual([bob.id]);
+    expect(left.events[0].attendeeCount).toBe(1);
+    expect(state.events[0].attendeeCount).toBe(0);
+    expect(() =>
+      applyAction(left, alice, "event.delete", { id: "build" }),
+    ).toThrow("Administrator");
+    const admin = state.users.find((user) => user.role === "ADMIN")!;
+    const deleted = applyAction(left, admin, "event.delete", { id: "build" });
+    expect(deleted.events.some((event) => event.id === "build")).toBe(false);
+    expect(deleted.demoEventRsvps?.build).toBeUndefined();
+  });
 });

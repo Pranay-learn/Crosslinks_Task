@@ -301,6 +301,30 @@ export function createDemo(): Snapshot {
         createdAt: ago(4),
       },
     ],
+    events: [
+      {
+        id: "build",
+        title: "Campus build weekend · Demo",
+        text: "Code. Create. Collaborate. Fictional sample event.",
+        location: "Student activity centre · Demo",
+        startsAt: new Date(Date.now() + 7 * 86400000).toISOString(),
+        endsAt: new Date(Date.now() + 7 * 86400000 + 7200000).toISOString(),
+        createdAt: ago(24),
+        attending: false,
+        attendeeCount: 0,
+      },
+      {
+        id: "music",
+        title: "An evening of unplugged music · Demo",
+        text: "Find your rhythm. Fictional sample event.",
+        location: "Open-air theatre · Demo",
+        startsAt: new Date(Date.now() + 12 * 86400000).toISOString(),
+        endsAt: new Date(Date.now() + 12 * 86400000 + 7200000).toISOString(),
+        createdAt: ago(24),
+        attending: false,
+        attendeeCount: 0,
+      },
+    ],
     auditLogs: [],
   };
 }

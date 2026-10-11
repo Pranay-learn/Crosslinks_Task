@@ -18,11 +18,16 @@ import {
 } from "../services/api";
 import { X, CheckCircle2, AlertCircle } from "lucide-react";
 const STORAGE = "nsut-connect-demo-v1";
+const DEMO =
+  import.meta.env.MODE === "demo" || import.meta.env.VITE_APP_MODE === "demo";
 function stored(): Snapshot {
   try {
     const v = JSON.parse(localStorage.getItem(STORAGE) || "null");
     return v && Array.isArray(v.users) && Array.isArray(v.timetable)
-      ? v
+      ? {
+          ...v,
+          events: Array.isArray(v.events) ? v.events : createDemo().events,
+        }
       : createDemo();
   } catch {
     return createDemo();
@@ -34,11 +39,12 @@ interface Context {
   demo: boolean;
   busy: boolean;
   loading: boolean;
+  authError: string;
+  signInReady: boolean;
   theme: string;
   following: string[];
   toggleFollow: (id: string) => void;
   toggleTheme: () => void;
-  enterDemo: () => void;
   login: (id: string) => void;
   logout: () => Promise<void>;
   mutate: (
@@ -54,10 +60,10 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState(stored);
   const [userId, setUserId] = useState(localStorage.getItem("nsut-demo-user"));
   const [liveUser, setLiveUser] = useState<User | null>(null);
-  const [demo, setDemo] = useState(import.meta.env.VITE_APP_MODE !== "live");
-  const [loading, setLoading] = useState(
-    import.meta.env.VITE_APP_MODE === "live",
-  );
+  const demo = DEMO;
+  const [loading, setLoading] = useState(!demo);
+  const [authError, setAuthError] = useState("");
+  const [signInReady, setSignInReady] = useState(demo);
   const [busy, setBusy] = useState(false);
   const [csrf, setCsrf] = useState("");
   const [theme, setTheme] = useState(
@@ -99,11 +105,19 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("nsut-following", JSON.stringify(followMap));
   }, [followMap]);
   useEffect(() => {
-    if (import.meta.env.VITE_APP_MODE !== "live") return;
+    if (demo) return;
     let stopped = false;
     (async () => {
       try {
         await request("/health");
+        const auth = await request<{ configured: boolean }>("/auth/status");
+        if (!stopped) {
+          setSignInReady(auth.configured);
+          if (!auth.configured)
+            setAuthError(
+              "Google sign-in is not available yet. Please contact a campus administrator.",
+            );
+        }
         try {
           const session = await getSession();
           const snapshot = await getSnapshot();
@@ -113,29 +127,18 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
             setData(snapshot);
           }
         } catch (error) {
-          if (error instanceof ApiError && error.status === 401) {
-            const auth = await request<{ configured: boolean }>("/auth/status");
-            if (!auth.configured && !stopped) {
-              setDemo(true);
-              setUserId(null);
-              toast(
-                "Live sign-in is not configured. Explore the simulated demo accounts.",
-              );
-            }
-          } else if (!stopped)
-            toast(
+          if (!(error instanceof ApiError && error.status === 401) && !stopped)
+            setAuthError(
               error instanceof Error
                 ? error.message
                 : "Could not load your session.",
-              true,
             );
         }
       } catch {
         if (!stopped) {
-          setDemo(true);
-          setUserId(null);
-          toast(
-            "Live service is unavailable. You can explore the working demo instead.",
+          setSignInReady(false);
+          setAuthError(
+            "Sign-in is temporarily unavailable. Please try again later.",
           );
         }
       } finally {
@@ -145,7 +148,7 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
     return () => {
       stopped = true;
     };
-  }, []);
+  }, [demo]);
   async function mutate(name: ActionName, input: Input, message?: string) {
     if (!user || busy) return false;
     setBusy(true);
@@ -217,11 +220,23 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
   return (
     <Community.Provider
       value={{
-        data,
+        data: demo
+          ? {
+              ...data,
+              events: data.events.map((event) => ({
+                ...event,
+                attending: userId
+                  ? (data.demoEventRsvps?.[event.id] || []).includes(userId)
+                  : false,
+              })),
+            }
+          : data,
         user,
         demo,
         busy,
         loading,
+        authError,
+        signInReady,
         theme,
         following: demo
           ? user
@@ -230,13 +245,8 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
           : data.following || [],
         toggleFollow,
         toggleTheme: () => setTheme((t) => (t === "light" ? "dark" : "light")),
-        enterDemo: () => {
-          setData(stored());
-          setDemo(true);
-          setUserId(null);
-          setLiveUser(null);
-        },
         login: (id) => {
+          if (!demo) return;
           setUserId(id);
           localStorage.setItem("nsut-demo-user", id);
         },

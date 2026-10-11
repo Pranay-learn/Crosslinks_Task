@@ -20,6 +20,7 @@ import { userRoutes } from "./routes/users.js";
 import { notificationRoutes } from "./routes/notifications.js";
 import { adminRoutes } from "./routes/admin.js";
 import { platformRoutes } from "./routes/platform.js";
+import { eventRoutes } from "./routes/events.js";
 
 export function createApp({
   db,
@@ -81,7 +82,8 @@ export function createApp({
       limit: 50,
       standardHeaders: "draft-8",
       legacyHeaders: false,
-      skip: (req) => req.path === "/me" || req.path === "/logout",
+      // Status is a read-only availability check on every frontend load; the general API limiter still applies.
+      skip: (req) => ["/me", "/logout", "/status"].includes(req.path),
       message: {
         error: "Too many sign-in attempts. Try again in a few minutes.",
       },
@@ -110,6 +112,7 @@ export function createApp({
   app.use("/api/announcements", announcementRoutes(db));
   app.use("/api/timetable", timetableRoutes(db));
   app.use("/api/notifications", notificationRoutes(db));
+  app.use("/api/events", eventRoutes(db));
   app.use("/api/admin", adminRoutes(db));
   app.use("/api", platformRoutes(db));
   app.use((_req, _res, next) =>

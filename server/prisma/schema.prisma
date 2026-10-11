@@ -60,6 +60,7 @@ model User {
   sessions     Session[]
   following    Follow[]      @relation("FollowerUser")
   followers    Follow[]      @relation("FollowingUser")
+  eventRsvps   EventRsvp[]
   @@index([status, createdAt])
   @@index([branch, year])
 }
@@ -241,4 +242,28 @@ model Follow {
   createdAt   DateTime @default(now())
   @@id([followerId, followingId])
   @@index([followingId])
+}
+
+model CampusEvent {
+  id        String @id @default(cuid())
+  title     String
+  text      String
+  location  String
+  startsAt  DateTime
+  endsAt    DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  rsvps     EventRsvp[]
+  @@index([startsAt])
+  @@index([endsAt])
+}
+
+model EventRsvp {
+  eventId   String
+  userId    String
+  event     CampusEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  @@id([eventId, userId])
+  @@index([userId])
 }

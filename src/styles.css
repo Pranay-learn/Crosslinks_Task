@@ -870,6 +870,7 @@ kbd {
   color: #8f74b5;
 }
 .event-row > div > strong {
+  overflow-wrap: anywhere;
   display: block;
   font-size: 11px;
   line-height: 1.6;
@@ -2173,6 +2174,9 @@ mark {
     max-width: 1050px;
   }
   .campus-sidebar {
+    display: block;
+  }
+  .campus-sidebar > :not(.campus-calendar) {
     display: none;
   }
   .campus-illustration {

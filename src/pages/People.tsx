@@ -37,7 +37,7 @@ import { EntityForm, profileFields } from "../components/EntityForm";
 import { PostCard, DiscussionCard } from "./Conversations";
 import { googleLogin } from "../services/api";
 export function Login() {
-  const { demo, login, user, loading, enterDemo } = useCommunity();
+  const { demo, login, user, loading, authError, signInReady } = useCommunity();
   const navigate = useNavigate();
   const location = useLocation();
   const error = new URLSearchParams(location.search).get("error");
@@ -117,9 +117,14 @@ export function Login() {
               Sign-in failed: {error.replaceAll("_", " ")}. Please try again.
             </div>
           )}
+          {!demo && authError && (
+            <div className="info-banner error" role="alert">
+              {authError}
+            </div>
+          )}
           <button
             className="google-button"
-            disabled={loading}
+            disabled={loading || (!demo && !signInReady)}
             onClick={() => (demo ? login("aarav") : googleLogin())}
           >
             <span className="google-g" aria-hidden="true">
@@ -156,9 +161,12 @@ export function Login() {
               </div>
             </div>
           )}
-          {!demo && (
-            <button className="button secondary" onClick={enterDemo}>
-              Explore the simulated demo
+          {!demo && authError && (
+            <button
+              className="button secondary"
+              onClick={() => window.location.reload()}
+            >
+              Try again
             </button>
           )}
           <p className="login-footnote">

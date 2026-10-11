@@ -210,9 +210,22 @@ try {
         create: entry,
         update: {},
       });
+    const eventStartsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    await tx.campusEvent.upsert({
+      where: { id: "seed-event-1" },
+      create: {
+        id: "seed-event-1",
+        title: "[DEMO] Campus build weekend",
+        text: "This is a fictional development event, not an official NSUT event. Bring a small project idea and meet a few sample collaborators.",
+        location: "Demo collaboration space · Fictional",
+        startsAt: eventStartsAt,
+        endsAt: new Date(eventStartsAt.getTime() + 2 * 60 * 60 * 1000),
+      },
+      update: {},
+    });
   });
   console.info(
-    "Fictional demo records seeded. These are not official NSUT notices, profiles, or schedules. Existing records were preserved.",
+    "Fictional demo records seeded. These are not official NSUT notices, profiles, schedules, or events. Existing records were preserved.",
   );
 } finally {
   await db.$disconnect();

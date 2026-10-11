@@ -1,20 +1,18 @@
 # NSUT Connect
 
-A responsive student community platform for NSUT, built with React, Vite, TypeScript, Tailwind CSS, React Router, Lucide, and Framer Motion. Express, PostgreSQL, and Prisma provide the separate full-stack mode.
+A responsive student community platform for NSUT, built with React, Vite, TypeScript, Tailwind CSS, React Router, Lucide, and Framer Motion. Express, PostgreSQL, and Prisma back the default full-stack application.
 
-The default demo is fully usable without a database or credentials. Sample notices, events, identities, and timetables are fictional and are clearly labeled. This project is independent of official NSUT services.
+Live mode requires real Google authentication with a verified `@nsut.ac.in` account. Student and administrator permissions are enforced on the server. If the API or OAuth configuration is unavailable, sign-in remains unavailable; simulated roles never grant campus access. This project is independent of official NSUT services.
 
-## Quick start: frontend demo
+## Getting started
 
-Requires Node 22.12+ (verified with Node 24), npm, and a modern browser.
+Requires Node 22.12+ (verified with Node 24), npm, PostgreSQL 16+, and a Google OAuth web application. Run these commands in the extracted project or repository folder:
 
 ```sh
-cd /workspace/Crosslinks_Task
 npm ci
-npm run dev
 ```
 
-Open the Vite address locally. Use **Student demo** or **Admin demo** on the login screen. The Google button simulates a student login in demo mode; it does not validate a Google identity. Use **Switch demo role** in the sidebar to explore both experiences. Demo content, profiles, interactions, following preferences, event RSVPs, and sessions persist in this browser's local storage. Logout removes the demo session while retaining community data. Clear this site's storage to reset the demo.
+Configure the database and Google credentials as described below, start the API, then run `npm run dev` in another terminal. The optional demo is a separate explicit command documented below.
 
 The app includes:
 
@@ -24,8 +22,9 @@ The app includes:
 - Responsive day/week timetables, batch filters, week navigation, campus time indicators, and conflict-checked administrator editing. Click a week-grid class to see its complete day view.
 - Own-profile editing, student profiles, grouped global search, notifications, light/dark themes, and mobile navigation.
 - Protected administration for notices, classes, moderation, account status, and audit history. Destructive actions require confirmation.
+- Administrator-managed campus events with student RSVPs stored in PostgreSQL; students can remove their own RSVP and see aggregate attendance without attendee identities.
 
-## Full-stack development
+## Run the full-stack application
 
 Use an existing PostgreSQL 16+ database, or start the optional local development database:
 
@@ -45,21 +44,35 @@ SEED_DEMO_DATA=true npm run db:seed
 npm run dev:server
 ```
 
-In another terminal, start the frontend in live mode:
+In another terminal, start the frontend (live is the default):
 
 ```sh
-VITE_APP_MODE=live npm run dev
+npm run dev
 ```
 
-Vite proxies `/api` to port 3001. `VITE_API_URL` may instead select a separately deployed API. Configure exact CORS origins on the server. If the live service or sign-in configuration is unavailable, the frontend explains the issue and offers the working demo. Demo authentication never establishes a backend session.
+Vite proxies `/api` to port 3001. `VITE_API_URL` may instead select a separately deployed API. Configure exact CORS origins on the server. Set `VITE_APP_MODE=live` in an existing `.env` that previously selected demo mode. Service or sign-in configuration failures show an unavailable message and a retry button, with no simulated login option in live mode.
 
 For real sign-in, configure a Google OAuth web application with the exact callback `http://localhost:3001/api/auth/google/callback` in local development. Supply `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` securely through environment settings or an ignored local `.env`. The server verifies Google's identity and email status, requires the exact `@nsut.ac.in` domain, and uses HttpOnly sessions, CSRF protection, and server-side authorization. New accounts are students; an operator's `ADMIN_EMAILS` allowlist can grant administrator access. Never accept a role from the client.
 
-Live Google consent/code exchange has not been exercised in this environment because OAuth credentials and a campus account were not supplied. Automated security tests exercise the identity and authorization boundaries; they do not replace a real provider sign-in check.
+Use an OAuth **web application client ID** ending in `.apps.googleusercontent.com`; a Google API key or project ID is not a client ID. The API checks the configured ID format before enabling sign-in. If running in a cloud or public deployment, register the reachable frontend/API origins and callback; a localhost callback points at the browser user's own computer.
 
-Production requires HTTPS `CLIENT_ORIGIN` and `API_ORIGIN`, `NODE_ENV=production`, an authenticated database, real OAuth configuration, and the correct registered callback. Serve the built SPA with history fallback, and run the compiled API separately. Following preferences and community mutations in live mode persist in PostgreSQL. Optional fictional demo-event RSVPs remain browser-local.
+Live Google consent/code exchange still requires validation with an actual campus account and a correctly registered callback. Automated security tests exercise the identity and authorization boundaries; trusted browser fixtures exercise real API/database sessions without bypassing production Google login.
+
+Production requires HTTPS `CLIENT_ORIGIN` and `API_ORIGIN`, `NODE_ENV=production`, an authenticated database, real OAuth configuration, and the correct registered callback. Serve the built SPA with history fallback, and run the compiled API separately. Following preferences, community mutations, events, and RSVPs in live mode persist in PostgreSQL. Theme preferences remain local to the browser.
+
+Google authentication does not connect a student's UMS account. Timetable APIs already include faculty and room names, but official UMS synchronization requires a supported authorized data source. The public UMS login URL alone supplies neither authenticated student data nor an API contract.
 
 See [backend configuration and API documentation](docs/backend.md) for all variables, endpoints, privacy rules, and deployment considerations. Prisma uses its JavaScript query engine. The migration runner applies checked-in Prisma SQL transactionally with checksums and locks because Prisma 6.19's experimental JS migration deployment has a PostgreSQL catalog-type limitation. No TLS or artifact checks were disabled.
+
+## Optional frontend demo
+
+For an explicitly fictional experience without credentials or a database:
+
+```sh
+npm run dev:demo
+```
+
+Use **Student demo** or **Admin demo**. Google sign-in is simulated only in this separate demo. Sample notices, events, identities, and timetables are labeled fictional. Demo interactions and sessions persist in browser storage; role switching belongs to this mode only. Demo attendance is stored per simulated student. Logout removes the demo session while retaining community data; clearing site storage resets it.
 
 ## Validation
 

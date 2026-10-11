@@ -23,6 +23,7 @@ export function platformRoutes(db: PrismaClient) {
       notifications,
       auditLogs,
       following,
+      events,
     ] = await db.$transaction(
       [
         db.user.findMany({ orderBy: { createdAt: "asc" } }),
@@ -68,6 +69,10 @@ export function platformRoutes(db: PrismaClient) {
           select: { followingId: true },
           orderBy: { createdAt: "asc" },
         }),
+        db.campusEvent.findMany({
+          orderBy: { startsAt: "asc" },
+          include: view.eventInclude(viewer.id),
+        }),
       ],
       { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
     );
@@ -84,6 +89,7 @@ export function platformRoutes(db: PrismaClient) {
       notifications: notifications.map(view.notification),
       auditLogs: auditLogs.map(view.audit),
       following: following.map((item) => item.followingId),
+      events: events.map(view.event),
     };
     res.json({ data });
   });

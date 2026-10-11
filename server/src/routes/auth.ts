@@ -2,7 +2,7 @@ import { Router } from "express";
 import type { PrismaClient } from "@prisma/client";
 import { CodeChallengeMethod, OAuth2Client } from "google-auth-library";
 import { createHash } from "node:crypto";
-import type { ServerConfig } from "../config/env.js";
+import { googleSignInConfigured, type ServerConfig } from "../config/env.js";
 import { HttpError } from "../lib/errors.js";
 import { user } from "../lib/serialize.js";
 import {
@@ -35,16 +35,16 @@ export function authRoutes(db: PrismaClient, config: ServerConfig) {
     config.googleRedirectUri,
   );
   const configured = () => {
-    if (!config.googleClientId || !config.googleClientSecret)
+    if (!googleSignInConfigured(config))
       throw new HttpError(
         503,
-        "Google sign-in is not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET on the server, then register GOOGLE_REDIRECT_URI in Google Cloud.",
+        "Google sign-in is not configured. Set GOOGLE_CLIENT_ID to a Google OAuth web application client ID ending in .apps.googleusercontent.com, set GOOGLE_CLIENT_SECRET on the server, and register GOOGLE_REDIRECT_URI in Google Cloud.",
       );
   };
   router.get("/status", (_req, res) => {
     res.json({
       data: {
-        configured: Boolean(config.googleClientId && config.googleClientSecret),
+        configured: googleSignInConfigured(config),
       },
     });
   });

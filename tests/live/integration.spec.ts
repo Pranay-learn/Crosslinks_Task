@@ -85,6 +85,9 @@ test.afterAll(async () => {
     await db.announcement.deleteMany({
       where: { title: { startsWith: prefix } },
     });
+    await db.campusEvent.deleteMany({
+      where: { title: { startsWith: prefix } },
+    });
     await db.auditLog.deleteMany({
       where: { actorId: { in: [studentId, adminId].filter(Boolean) } },
     });
@@ -246,16 +249,120 @@ test("live admin creates a hex-color timetable class and publishes a notice", as
     }),
   ).toBe(1);
 });
-test("unconfigured live OAuth falls back to a labeled working demo", async ({
+test("admin publishes and edits an IST event; student RSVP persists and can be removed", async ({
+  page,
+}) => {
+  const title = `${prefix} campus workshop`;
+  await session(page, admin.token);
+  await page.goto("/admin");
+  await page.getByRole("button", { name: "Events", exact: true }).click();
+  await page.getByRole("button", { name: "New event", exact: true }).click();
+  await page.getByLabel("Event title").fill(title);
+  await page
+    .getByLabel("Event description")
+    .fill("A database-backed campus workshop.");
+  await page.getByLabel("Event location").fill("APJ 1");
+  await page.getByLabel("Starts (IST)").fill("2030-11-18T17:30");
+  await page.getByLabel("Ends (IST)").fill("2030-11-18T19:00");
+  await page.getByRole("button", { name: "Save changes", exact: true }).click();
+  await expect(page.getByText(title, { exact: true })).toBeVisible();
+  const event = await db!.campusEvent.findFirstOrThrow({ where: { title } });
+  expect(event.startsAt.toISOString()).toBe("2030-11-18T12:00:00.000Z");
+  await page
+    .getByRole("button", { name: `Edit ${title}`, exact: true })
+    .click();
+  await expect(page.getByLabel("Starts (IST)")).toHaveValue("2030-11-18T17:30");
+  await page.getByLabel("Event location").fill("APJ 2");
+  await page.getByRole("button", { name: "Save changes", exact: true }).click();
+  await expect(page.getByText(/APJ 2/)).toBeVisible();
+  // The earlier logout test deliberately revoked its student session.
+  const attendeeSession = await createSession(db!, studentId);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await session(page, attendeeSession.token);
+  await page
+    .getByRole("button", { name: `Join ${title}`, exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: `Leave ${title}`, exact: true }),
+  ).toBeVisible();
+  await page.reload();
+  await expect(
+    page.getByRole("button", { name: `Leave ${title}`, exact: true }),
+  ).toBeVisible();
+  expect(
+    await db!.eventRsvp.count({
+      where: { eventId: event.id, userId: studentId },
+    }),
+  ).toBe(1);
+  await page
+    .getByRole("button", { name: `Leave ${title}`, exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: `Join ${title}`, exact: true }),
+  ).toBeVisible();
+  expect(
+    await db!.eventRsvp.count({
+      where: { eventId: event.id, userId: studentId },
+    }),
+  ).toBe(0);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+});
+test("unconfigured live OAuth keeps simulated accounts out of campus access", async ({
   page,
 }) => {
   await page.goto("/login");
-  await page.goto("/");
+  await page.evaluate(() => localStorage.setItem("nsut-demo-user", "admin"));
+  await page.goto("/admin");
+  await expect(
+    page.getByRole("button", { name: "Continue with Google", exact: true }),
+  ).toBeDisabled();
+  await expect(
+    page.getByText(
+      "Google sign-in is not available yet. Please contact a campus administrator.",
+    ),
+  ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Student demo", exact: true }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Student demo", exact: true }).click();
+  ).toHaveCount(0);
   await expect(
-    page.getByRole("heading", { name: "Hello, Aarav 👋" }),
+    page.getByRole("button", { name: "Admin demo", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByText("Explore the simulated demo", { exact: true }),
+  ).toHaveCount(0);
+  await expect(page).toHaveURL(/\/login$/);
+});
+test("unavailable API denies simulated login and retry returns to the real sign-in check", async ({
+  page,
+}) => {
+  await page.route("**/api/health", (route) =>
+    route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "Service unavailable" }),
+    }),
+  );
+  await page.goto("/admin");
+  await expect(
+    page.getByText(
+      "Sign-in is temporarily unavailable. Please try again later.",
+    ),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Continue with Google", exact: true }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "Admin demo", exact: true }),
+  ).toHaveCount(0);
+  await page.unroute("**/api/health");
+  await page.getByRole("button", { name: "Try again", exact: true }).click();
+  await expect(
+    page.getByText(
+      "Google sign-in is not available yet. Please contact a campus administrator.",
+    ),
   ).toBeVisible();
 });

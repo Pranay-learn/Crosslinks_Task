@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import type { ActionName, Input } from "../../shared/model";
 import { colorName } from "../lib/colors";
+import { eventLocalTime } from "../lib/events";
 import { useCommunity } from "../context/Community";
 import {
   Avatar,
@@ -27,6 +28,7 @@ import {
   EntityForm,
   announcementFields,
   timetableFields,
+  eventFields,
   type FormField,
 } from "../components/EntityForm";
 export function Admin() {
@@ -92,6 +94,24 @@ export function Admin() {
           },
     });
   };
+  const editEvent = (id?: string) => {
+    const event = data.events.find((record) => record.id === id);
+    setForm({
+      title: event ? "Edit event" : "Create event",
+      fields: eventFields,
+      action: "event.save",
+      initial: event
+        ? {
+            id: event.id,
+            title: event.title,
+            text: event.text,
+            location: event.location,
+            startsAt: eventLocalTime(event.startsAt),
+            endsAt: eventLocalTime(event.endsAt),
+          }
+        : {},
+    });
+  };
   return (
     <>
       <PageHeader
@@ -132,20 +152,25 @@ export function Admin() {
         ))}
       </div>
       <div className="tabs admin-tabs">
-        {["Announcements", "Timetable", "Moderation", "Users", "Audit log"].map(
-          (t) => (
-            <button
-              className={tab === t ? "selected" : ""}
-              key={t}
-              onClick={() => {
-                setTab(t);
-                setQ("");
-              }}
-            >
-              {t}
-            </button>
-          ),
-        )}
+        {[
+          "Announcements",
+          "Timetable",
+          "Events",
+          "Moderation",
+          "Users",
+          "Audit log",
+        ].map((t) => (
+          <button
+            className={tab === t ? "selected" : ""}
+            key={t}
+            onClick={() => {
+              setTab(t);
+              setQ("");
+            }}
+          >
+            {t}
+          </button>
+        ))}
       </div>
       <div className="filter-row">
         <SearchBox
@@ -153,15 +178,23 @@ export function Admin() {
           onChange={setQ}
           placeholder={`Search ${tab.toLowerCase()}…`}
         />
-        {(tab === "Announcements" || tab === "Timetable") && (
+        {["Announcements", "Timetable", "Events"].includes(tab) && (
           <button
             className="button"
             onClick={() =>
-              tab === "Announcements" ? editAnnouncement() : editTimetable()
+              tab === "Announcements"
+                ? editAnnouncement()
+                : tab === "Events"
+                  ? editEvent()
+                  : editTimetable()
             }
           >
             <Plus size={16} />
-            {tab === "Announcements" ? "New announcement" : "Add class"}
+            {tab === "Announcements"
+              ? "New announcement"
+              : tab === "Events"
+                ? "New event"
+                : "Add class"}
           </button>
         )}
       </div>
@@ -242,6 +275,51 @@ export function Admin() {
                 </button>
               </div>
             ))}
+        {tab === "Events" &&
+          data.events
+            .filter((event) => match(event.title + " " + event.location))
+            .map((event) => (
+              <div className="admin-row" key={event.id}>
+                <div>
+                  <strong>{event.title}</strong>
+                  <small>
+                    {event.location} ·{" "}
+                    {new Date(event.startsAt).toLocaleString("en-IN", {
+                      timeZone: "Asia/Kolkata",
+                    })}{" "}
+                    IST
+                  </small>
+                </div>
+                <Badge>{event.attendeeCount} attending</Badge>
+                <button
+                  className="icon-button"
+                  aria-label={`Edit ${event.title}`}
+                  onClick={() => editEvent(event.id)}
+                >
+                  <Pencil size={16} />
+                </button>
+                <button
+                  className="icon-button"
+                  aria-label={`Delete ${event.title}`}
+                  disabled={busy}
+                  onClick={() =>
+                    remove(
+                      "event.delete",
+                      event.id,
+                      "Delete this event and its RSVPs?",
+                    )
+                  }
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            ))}
+        {tab === "Events" && !data.events.length && (
+          <Empty
+            title="No campus events"
+            text="Create an event to publish it to the campus calendar."
+          />
+        )}
         {tab === "Moderation" &&
           [
             ...data.posts.map((p) => ({

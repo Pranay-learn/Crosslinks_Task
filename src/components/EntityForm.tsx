@@ -6,7 +6,7 @@ import { announcementCategories, branches, categories } from "../data/demo";
 export interface FormField {
   name: string;
   label: string;
-  type?: "textarea" | "number" | "checkbox" | "url" | "time";
+  type?: "textarea" | "number" | "checkbox" | "url" | "time" | "datetime-local";
   options?: string[];
   optional?: boolean;
   max?: number;
@@ -14,6 +14,13 @@ export interface FormField {
 }
 export const postFields: FormField[] = [
   { name: "text", label: "What’s on your mind?", type: "textarea", max: 5000 },
+];
+export const eventFields: FormField[] = [
+  { name: "title", label: "Event title", max: 180 },
+  { name: "text", label: "Event description", type: "textarea", max: 5000 },
+  { name: "location", label: "Event location", max: 120 },
+  { name: "startsAt", label: "Starts (IST)", type: "datetime-local" },
+  { name: "endsAt", label: "Ends (IST)", type: "datetime-local" },
 ];
 export const threadFields: FormField[] = [
   { name: "title", label: "Discussion title", max: 180 },

@@ -724,62 +724,72 @@ export function Timetable() {
   );
 }
 export function CampusSidebar() {
-  const { data, demo } = useCommunity();
-  const [rsvps, setRsvps] = useState<string[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem("nsut-demo-rsvps") || "[]");
-    } catch {
-      return [];
-    }
-  });
-  const events = [
-    {
-      id: "build",
-      day: "18",
-      month: "OCT",
-      title: "Campus build weekend",
-      type: "Code. Create. Collaborate.",
-      color: "blue",
-    },
-    {
-      id: "music",
-      day: "23",
-      month: "OCT",
-      title: "An evening of unplugged music",
-      type: "Find your rhythm.",
-      color: "violet",
-    },
-  ];
+  const { data, demo, mutate, busy } = useCommunity();
+  const events = data.events
+    .filter((event) => new Date(event.endsAt).getTime() > Date.now())
+    .sort((a, b) => a.startsAt.localeCompare(b.startsAt))
+    .slice(0, 3);
   return (
     <aside className="campus-sidebar">
-      <div className="card side-card">
+      <div className="card side-card campus-calendar">
         <SectionTitle title="Campus calendar" />
-        <p className="side-caption">Fictional demo events</p>
+        <p className="side-caption">
+          {demo ? "Fictional demo events" : "Upcoming campus events · IST"}
+        </p>
         {events.map((e) => (
           <div className="event-row" key={e.id}>
-            <span className={`event-date ${e.color}`}>
-              <strong>{e.day}</strong>
-              <small>{e.month}</small>
+            <span className="event-date blue">
+              <strong>
+                {new Date(e.startsAt).toLocaleDateString("en-IN", {
+                  day: "2-digit",
+                  timeZone: "Asia/Kolkata",
+                })}
+              </strong>
+              <small>
+                {new Date(e.startsAt)
+                  .toLocaleDateString("en-IN", {
+                    month: "short",
+                    timeZone: "Asia/Kolkata",
+                  })
+                  .toUpperCase()}
+              </small>
             </span>
             <div>
               <strong>{e.title}</strong>
-              <small>{e.type}</small>
+              <small>
+                {e.location} ·{" "}
+                {new Date(e.startsAt).toLocaleTimeString("en-IN", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  timeZone: "Asia/Kolkata",
+                })}
+              </small>
+              <small>{e.attendeeCount} attending</small>
               <button
                 className="text-button"
-                onClick={() => {
-                  const next = rsvps.includes(e.id)
-                    ? rsvps.filter((x) => x !== e.id)
-                    : [...rsvps, e.id];
-                  setRsvps(next);
-                  localStorage.setItem("nsut-demo-rsvps", JSON.stringify(next));
-                }}
+                disabled={busy}
+                aria-label={`${e.attending ? "Leave" : "Join"} ${e.title}`}
+                onClick={() =>
+                  mutate(
+                    "event.rsvp",
+                    { id: e.id, attending: !e.attending },
+                    e.attending ? "RSVP removed" : "RSVP saved",
+                  )
+                }
               >
-                {rsvps.includes(e.id) ? "Joined · Undo" : "Join demo event"}
+                {e.attending
+                  ? "Joined · Undo"
+                  : demo
+                    ? "Join demo event"
+                    : "Join event"}
                 <ArrowRight size={12} />
               </button>
             </div>
           </div>
         ))}
+        {!events.length && (
+          <p className="side-caption">No upcoming events yet.</p>
+        )}
       </div>
       <div className="card side-card">
         <SectionTitle title="Worth a conversation" />

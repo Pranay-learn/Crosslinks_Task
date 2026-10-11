@@ -1,4 +1,5 @@
 import { palette } from "../lib/colors";
+import { eventInstant } from "../lib/events";
 import type { ActionName, Input, Snapshot, User } from "../../shared/model";
 const base = import.meta.env.VITE_API_URL || "";
 export class ApiError extends Error {
@@ -169,6 +170,21 @@ export async function apiAction(
         : "hide";
       delete body.kind;
       break;
+    case "event.save":
+      path = input.id ? `/events/${id}` : "/events";
+      method = input.id ? "PATCH" : "POST";
+      body.startsAt = eventInstant(String(body.startsAt || ""));
+      body.endsAt = eventInstant(String(body.endsAt || ""));
+      break;
+    case "event.delete":
+      path = `/events/${id}`;
+      method = "DELETE";
+      break;
+    case "event.rsvp":
+      path = `/events/${id}/rsvp`;
+      method = input.attending ? "POST" : "DELETE";
+      delete body.attending;
+      break;
     case "admin.userStatus":
       path = `/admin/users/${id}/status`;
       method = "PATCH";
@@ -177,6 +193,10 @@ export async function apiAction(
           ? "SUSPENDED"
           : "ACTIVE";
       break;
+    default: {
+      const unsupported: never = name;
+      throw new Error(`Unsupported action: ${unsupported}`);
+    }
   }
   await request(path, method, method === "DELETE" ? undefined : body, csrf);
   return getSnapshot();

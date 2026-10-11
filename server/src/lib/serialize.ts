@@ -17,6 +17,7 @@ import type {
   TimetableEntry,
   Notification,
   AuditLog,
+  CampusEvent,
 } from "../../../shared/model.js";
 
 export const postInclude = {
@@ -29,6 +30,13 @@ export const discussionInclude = {
 export const announcementInclude = {
   reads: true,
 } satisfies Prisma.AnnouncementInclude;
+export const eventInclude = (viewerId: string) => ({
+  rsvps: { where: { userId: viewerId }, select: { userId: true } },
+  _count: { select: { rsvps: true } },
+}) satisfies Prisma.CampusEventInclude;
+type DbEvent = Prisma.CampusEventGetPayload<{
+  include: ReturnType<typeof eventInclude>;
+}>;
 type DbPost = Prisma.PostGetPayload<{ include: typeof postInclude }>;
 type DbDiscussion = Prisma.DiscussionGetPayload<{
   include: typeof discussionInclude;
@@ -153,5 +161,19 @@ export function audit(row: DbAudit): AuditLog {
     action: row.action,
     targetId: row.targetId,
     createdAt: row.createdAt.toISOString(),
+  };
+}
+
+export function event(row: DbEvent): CampusEvent {
+  return {
+    id: row.id,
+    title: row.title,
+    text: row.text,
+    location: row.location,
+    startsAt: row.startsAt.toISOString(),
+    endsAt: row.endsAt.toISOString(),
+    createdAt: row.createdAt.toISOString(),
+    attending: row.rsvps.length > 0,
+    attendeeCount: row._count.rsvps,
   };
 }

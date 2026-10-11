@@ -1,4 +1,5 @@
 import type { ActionName, Input, Snapshot, User } from "../../shared/model";
+import { eventInstant } from "./events";
 const str = (v: Input, key: string) => String(v[key] ?? "").trim();
 const id = () => crypto.randomUUID();
 export function safeUrl(value: string): boolean {
@@ -269,6 +270,45 @@ export function applyAction(
         },
         ...s.timetable.filter((t) => t.id !== key),
       ];
+    }
+    audit(action);
+  } else if (action.startsWith("event.")) {
+    const old = s.events.find((event) => event.id === key);
+    if (action === "event.rsvp") {
+      if (!old) throw new Error("Event unavailable.");
+      const attendees = s.demoEventRsvps?.[key] || [];
+      const attending = Boolean(input.attending);
+      const next = attending
+        ? [...new Set([...attendees, user.id])]
+        : attendees.filter((viewer) => viewer !== user.id);
+      s.demoEventRsvps = { ...s.demoEventRsvps, [key]: next };
+      old.attending = next.includes(user.id);
+      old.attendeeCount = next.length;
+      return s;
+    }
+    admin();
+    if (action === "event.delete") {
+      if (!old) throw new Error("Event unavailable.");
+      s.events = s.events.filter((event) => event.id !== key);
+      if (s.demoEventRsvps) delete s.demoEventRsvps[key];
+    }
+    if (action === "event.save") {
+      const startsAt = eventInstant(str(input, "startsAt"));
+      const endsAt = eventInstant(str(input, "endsAt"));
+      if (startsAt >= endsAt)
+        throw new Error("Event end must be after its start.");
+      const event = {
+        id: old?.id || id(),
+        title: requireText("title", 180),
+        text: requireText("text", 5000),
+        location: requireText("location", 120),
+        startsAt,
+        endsAt,
+        createdAt: old?.createdAt || now,
+        attending: old?.attending || false,
+        attendeeCount: old?.attendeeCount || 0,
+      };
+      s.events = [event, ...s.events.filter((record) => record.id !== key)];
     }
     audit(action);
   } else if (action === "profile.edit") {

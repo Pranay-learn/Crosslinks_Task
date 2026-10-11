@@ -148,6 +148,27 @@ suite(
       expect(status.status).toBe(200);
       expect(status.body).toEqual({ data: { configured: false } });
     });
+    it("rejects malformed OAuth configuration before creating sign-in state", async () => {
+      const invalid = createApp({
+        db: db!,
+        config: {
+          port: 3001,
+          clientOrigin: "http://localhost:5173",
+          apiOrigin: "http://localhost:3001",
+          googleClientId: "not-an-oauth-web-client",
+          googleClientSecret: "test-placeholder",
+          googleRedirectUri: "http://localhost:3001/api/auth/google/callback",
+          adminEmails: [],
+          production: false,
+        },
+      });
+      const before = await db!.oAuthState.count();
+      expect((await request(invalid).get("/api/auth/status")).body).toEqual({
+        data: { configured: false },
+      });
+      expect((await request(invalid).get("/api/auth/google")).status).toBe(503);
+      expect(await db!.oAuthState.count()).toBe(before);
+    });
     it("binds one-use OAuth state to its browser and sets production-safe cookies", async () => {
       const oauthApp = createApp({
         db: db!,
@@ -155,7 +176,7 @@ suite(
           port: 3001,
           clientOrigin: "https://campus.example",
           apiOrigin: "https://api.example",
-          googleClientId: "integration-client",
+          googleClientId: "1234567890-integration.apps.googleusercontent.com",
           googleClientSecret: "integration-placeholder",
           googleRedirectUri: "https://api.example/api/auth/google/callback",
           adminEmails: [],
@@ -667,47 +688,114 @@ suite(
       ]);
       expect(responses.map((response) => response.status)).toEqual([200, 200]);
       expect(responses[0].body.data).toEqual({ following: [bob.id] });
-      expect(await db!.follow.count({ where: { followerId: alice.id, followingId: bob.id } })).toBe(1);
-      expect((await run("get", "/api/snapshot")).body.data.following).toEqual([bob.id]);
-      expect((await run("get", "/api/snapshot", bobSession)).body.data.following).toEqual([]);
+      expect(
+        await db!.follow.count({
+          where: { followerId: alice.id, followingId: bob.id },
+        }),
+      ).toBe(1);
+      expect((await run("get", "/api/snapshot")).body.data.following).toEqual([
+        bob.id,
+      ]);
+      expect(
+        (await run("get", "/api/snapshot", bobSession)).body.data.following,
+      ).toEqual([]);
       const freshSession = await createSession(db!, alice.id);
-      expect((await run("get", "/api/snapshot", freshSession)).body.data.following).toEqual([bob.id]);
+      expect(
+        (await run("get", "/api/snapshot", freshSession)).body.data.following,
+      ).toEqual([bob.id]);
     });
     it("filters following posts by persisted relationships instead of shared branch", async () => {
-      const created = await run("post", "/api/posts", bobSession).send({ text: `Followed author ${prefix}` });
+      const created = await run("post", "/api/posts", bobSession).send({
+        text: `Followed author ${prefix}`,
+      });
       expect(created.status).toBe(201);
       const followed = await run("get", "/api/posts?sort=following");
       expect(followed.status).toBe(200);
-      expect(followed.body.data.map((row: { id: string }) => row.id)).toEqual([created.body.data.id]);
-      expect((await run("get", "/api/posts?sort=following", bobSession)).body.data).toEqual([]);
-      expect((await run("delete", `/api/users/${bob.id}/follow`)).body.data.following).toEqual([]);
-      expect((await run("delete", `/api/users/${bob.id}/follow`)).status).toBe(200);
-      expect((await run("get", "/api/posts?sort=following")).body.data).toEqual([]);
+      expect(followed.body.data.map((row: { id: string }) => row.id)).toEqual([
+        created.body.data.id,
+      ]);
+      expect(
+        (await run("get", "/api/posts?sort=following", bobSession)).body.data,
+      ).toEqual([]);
+      expect(
+        (await run("delete", `/api/users/${bob.id}/follow`)).body.data
+          .following,
+      ).toEqual([]);
+      expect((await run("delete", `/api/users/${bob.id}/follow`)).status).toBe(
+        200,
+      );
+      expect((await run("get", "/api/posts?sort=following")).body.data).toEqual(
+        [],
+      );
     });
     it("rejects self-follow, nonexistent targets, missing authentication, and forged follower IDs", async () => {
-      expect((await run("post", `/api/users/${alice.id}/follow`).send({})).status).toBe(400);
-      expect((await run("post", "/api/users/nonexistent/follow").send({})).status).toBe(404);
-      expect((await request(app).post(`/api/users/${bob.id}/follow`).send({})).status).toBe(401);
-      expect((await run("post", `/api/users/${bob.id}/follow`).send({ followerId: admin.id })).status).toBe(400);
-      expect(await db!.follow.count({ where: { followerId: admin.id } })).toBe(0);
+      expect(
+        (await run("post", `/api/users/${alice.id}/follow`).send({})).status,
+      ).toBe(400);
+      expect(
+        (await run("post", "/api/users/nonexistent/follow").send({})).status,
+      ).toBe(404);
+      expect(
+        (await request(app).post(`/api/users/${bob.id}/follow`).send({}))
+          .status,
+      ).toBe(401);
+      expect(
+        (
+          await run("post", `/api/users/${bob.id}/follow`).send({
+            followerId: admin.id,
+          })
+        ).status,
+      ).toBe(400);
+      expect(await db!.follow.count({ where: { followerId: admin.id } })).toBe(
+        0,
+      );
     });
     it("excludes suspended follow targets and still permits unfollow cleanup", async () => {
-      const target = await db!.user.create({ data: { name: "Temporary follow target", email: `${prefix}.follow-target@nsut.ac.in` } });
+      const target = await db!.user.create({
+        data: {
+          name: "Temporary follow target",
+          email: `${prefix}.follow-target@nsut.ac.in`,
+        },
+      });
       userIds.push(target.id);
-      expect((await run("post", `/api/users/${target.id}/follow`).send({})).status).toBe(200);
-      await db!.user.update({ where: { id: target.id }, data: { status: "SUSPENDED" } });
-      expect((await run("post", `/api/users/${target.id}/follow`).send({})).status).toBe(404);
-      expect((await run("get", "/api/snapshot")).body.data.following).toEqual([]);
-      expect((await run("delete", `/api/users/${target.id}/follow`)).status).toBe(200);
-      expect(await db!.follow.count({ where: { followingId: target.id } })).toBe(0);
+      expect(
+        (await run("post", `/api/users/${target.id}/follow`).send({})).status,
+      ).toBe(200);
+      await db!.user.update({
+        where: { id: target.id },
+        data: { status: "SUSPENDED" },
+      });
+      expect(
+        (await run("post", `/api/users/${target.id}/follow`).send({})).status,
+      ).toBe(404);
+      expect((await run("get", "/api/snapshot")).body.data.following).toEqual(
+        [],
+      );
+      expect(
+        (await run("delete", `/api/users/${target.id}/follow`)).status,
+      ).toBe(200);
+      expect(
+        await db!.follow.count({ where: { followingId: target.id } }),
+      ).toBe(0);
     });
     it("cascades follow relationships when a target profile is deleted", async () => {
-      const target = await db!.user.create({ data: { name: "Temporary follow cascade", email: `${prefix}.follow-cascade@nsut.ac.in` } });
+      const target = await db!.user.create({
+        data: {
+          name: "Temporary follow cascade",
+          email: `${prefix}.follow-cascade@nsut.ac.in`,
+        },
+      });
       userIds.push(target.id);
-      expect((await run("post", `/api/users/${target.id}/follow`).send({})).status).toBe(200);
+      expect(
+        (await run("post", `/api/users/${target.id}/follow`).send({})).status,
+      ).toBe(200);
       await db!.user.delete({ where: { id: target.id } });
-      expect(await db!.follow.count({ where: { followingId: target.id } })).toBe(0);
-      expect((await run("get", "/api/snapshot")).body.data.following).toEqual([]);
+      expect(
+        await db!.follow.count({ where: { followingId: target.id } }),
+      ).toBe(0);
+      expect((await run("get", "/api/snapshot")).body.data.following).toEqual(
+        [],
+      );
     });
     it("revokes suspended accounts and destroys the session on logout", async () => {
       expect(
