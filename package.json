@@ -3,11 +3,15 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": "24.x"
+  },
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "dev:demo": "vite --host 0.0.0.0 --mode demo",
     "dev:server": "tsx watch server/src/index.ts",
     "build": "tsc -p tsconfig.json && NODE_ENV=production vite build && tsc -p server/tsconfig.json",
+    "build:vercel": "tsx server/scripts/vercel-build.ts",
     "start:server": "node dist-server/server/src/index.js",
     "preview": "vite preview --host 0.0.0.0",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p server/tsconfig.json",

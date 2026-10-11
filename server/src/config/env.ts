@@ -20,8 +20,15 @@ export function googleSignInConfigured(
 
 export function loadConfig(): ServerConfig {
   const production = process.env.NODE_ENV === "production";
-  const clientOrigin = process.env.CLIENT_ORIGIN || "http://localhost:5173";
-  const apiOrigin = process.env.API_ORIGIN || "http://localhost:3001";
+  // Vercel supplies this project-owned domain; never derive trusted origins from request headers.
+  const vercelDomain =
+    process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
+  const vercelOrigin =
+    production && vercelDomain ? `https://${vercelDomain}` : undefined;
+  const clientOrigin =
+    process.env.CLIENT_ORIGIN || vercelOrigin || "http://localhost:5173";
+  const apiOrigin =
+    process.env.API_ORIGIN || vercelOrigin || "http://localhost:3001";
   for (const value of [clientOrigin, apiOrigin]) {
     const parsed = new URL(value);
     if (

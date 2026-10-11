@@ -1,0 +1,13 @@
+.git
+.env
+.env.*
+!.env.example
+.local
+.vercel
+node_modules
+dist
+dist-server
+playwright-report
+test-results
+coverage
+*.log

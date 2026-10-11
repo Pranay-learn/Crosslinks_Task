@@ -5,6 +5,6 @@
     "outDir": "../dist-server", "rootDir": "..", "types": ["node"], "noUnusedLocals": true,
     "noUnusedParameters": true
   },
-  "include": ["src/**/*.ts", "prisma/seed.ts", "scripts/**/*.ts", "prisma.config.ts", "../shared/model.ts"],
+  "include": ["src/**/*.ts", "prisma/seed.ts", "scripts/**/*.ts", "prisma.config.ts", "../shared/model.ts", "../api/**/*.ts"],
   "exclude": ["src/**/*.test.ts", "tests/**"]
 }

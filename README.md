@@ -6,7 +6,7 @@ Live mode requires real Google authentication with a verified `@nsut.ac.in` acco
 
 ## Getting started
 
-Requires Node 22.12+ (verified with Node 24), npm, PostgreSQL 16+, and a Google OAuth web application. Run these commands in the extracted project or repository folder:
+Requires Node 24, npm, PostgreSQL 16+, and a Google OAuth web application. Run these commands in the extracted project or repository folder:
 
 ```sh
 npm ci
@@ -63,6 +63,10 @@ Production requires HTTPS `CLIENT_ORIGIN` and `API_ORIGIN`, `NODE_ENV=production
 Google authentication does not connect a student's UMS account. Timetable APIs already include faculty and room names, but official UMS synchronization requires a supported authorized data source. The public UMS login URL alone supplies neither authenticated student data nor an API contract.
 
 See [backend configuration and API documentation](docs/backend.md) for all variables, endpoints, privacy rules, and deployment considerations. Prisma uses its JavaScript query engine. The migration runner applies checked-in Prisma SQL transactionally with checksums and locks because Prisma 6.19's experimental JS migration deployment has a PostgreSQL catalog-type limitation. No TLS or artifact checks were disabled.
+
+## Free hosting
+
+Deploy the full-stack app to **Vercel Hobby + Neon Free** using the [deployment guide](docs/deploy-vercel.md). The checked-in Vercel configuration hosts the SPA and Express API on one HTTPS domain. Production builds use a direct database connection to apply migrations; previews skip migrations. Hosting accounts, a hosted database, and correctly registered Google OAuth credentials are required.
 
 ## Optional frontend demo
 
